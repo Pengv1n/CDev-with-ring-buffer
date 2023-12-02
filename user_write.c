@@ -3,6 +3,9 @@
 #include<unistd.h>
 #include<fcntl.h>
 #include<string.h>
+#include <sys/ioctl.h>
+
+#define IONBLOCK _IO('L', 0) 
 
 int main()
 {
@@ -17,11 +20,14 @@ int main()
     }
 
     char Ubuff[50] = "Hellomeis";
+	
+    ioctl(fd, IONBLOCK, 1);
 
-    //scanf("%s", Ubuff);
+    write(fd, Ubuff, strlen(Ubuff) + 1);
+    write(fd, Ubuff, strlen(Ubuff) + 1);
+    write(fd, Ubuff, strlen(Ubuff) + 1);
 
-    /* Write the data into the device */
-    write(fd , Ubuff , strlen(Ubuff) + 1);
+    //ioctl(fd, IONBLOCK, 1);
 
     close(fd);  
     return 0;
