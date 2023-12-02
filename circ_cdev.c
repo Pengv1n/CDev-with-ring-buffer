@@ -6,8 +6,13 @@
 #include <linux/cdev.h>
 #include <linux/printk.h>
 #include <linux/wait.h>
+#include <linux/time.h>
+#include <linux/timex.h>
+#include <linux/rtc.h>
+#include <linux/timekeeping.h>
 
 #define IONBLOCK _IO('L', 0)
+#define GET_LAST_OP _IO('L', 1)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Georgiy");
@@ -180,6 +185,7 @@ ssize_t my_write(struct file *filp, const char __user *usr_buff, size_t count, l
 		dev->KERN_BUFF.head = (dev->KERN_BUFF.head + 1) & (dev->KERN_SIZE - 1);
 	}
 	
+	//struct timespec t = current_kernel_time();
 	up(&dev->sem);
 	wake_up_interruptible(&dev->inq);
 
@@ -242,7 +248,7 @@ long my_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	{
 		case IONBLOCK:
 		{
-			printk("In ioctl with cmd - %d", cmd);
+			printk("In ioctl IONBLOCK with cmd - %d", cmd);
 			
 			unsigned int flag;
 			flag = O_NONBLOCK;
@@ -252,6 +258,17 @@ long my_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			else
 				filp->f_flags &= ~flag;
 			spin_unlock(&filp->f_lock);
+			break;
+		}
+		case GET_LAST_OP:
+		{
+			printk("In ioctl GET_LAST_OP with cmd - %d", cmd);
+			//char *output = (char *)arg;
+
+			struct timespec64 time;
+			//unsigned long local_time;
+
+			ktime_get_ts64(&time);
 			break;
 		}
 		default:
