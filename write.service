@@ -3,5 +3,5 @@
 Description=Write time into driver
 
 [Service]
-ExecStart =/bin/bash '/home/ubuntu/test/write.sh'
+ExecStart =/bin/bash '/tmp/write.sh'
 
