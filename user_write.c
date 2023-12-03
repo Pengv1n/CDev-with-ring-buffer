@@ -20,6 +20,8 @@ int main()
     }
 
     char Ubuff[50] = "Hellomeis";
+
+    printf("%d\n", getpid());
 	
     ioctl(fd, IONBLOCK, 1);
 

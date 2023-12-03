@@ -10,6 +10,7 @@
 #include <linux/timex.h>
 #include <linux/rtc.h>
 #include <linux/timekeeping.h>
+#include <linux/cred.h>
 
 #define IONBLOCK _IO('L', 0)
 #define GET_LAST_OP _IO('L', 1)
@@ -34,6 +35,7 @@ typedef struct privatedata
 	struct circ_buf KERN_BUFF;
 	int KERN_SIZE;
 	struct semaphore sem;
+	char last_op[127];
 } my_privatedata;
 
 my_privatedata devices[MAX_DEVICE];
@@ -57,6 +59,25 @@ struct file_operations my_fops = {
 	.read    = my_read,
 	.unlocked_ioctl = my_ioctl,
 };
+
+void set_last_op(char *out, const char *op)
+{
+	struct timespec64 curr_tm;
+        struct tm tm1;
+
+        ktime_to_timespec64_cond(ktime_get_real(), &curr_tm);
+        time64_to_tm(curr_tm.tv_sec, 0, &tm1);
+
+        sprintf(out, "%s TIME: %.4lu-%.2d-%.2d %.2d:%.2d:%.2d PID: %u",
+                        op,
+			tm1.tm_year + 1900,
+                        tm1.tm_mon,
+                        tm1.tm_mday,
+                        tm1.tm_hour + 3,
+                        tm1.tm_min,
+                        tm1.tm_sec,
+                        current->pid);
+}
 
 static int __init circ_cdev_init(void)
 {
@@ -144,7 +165,7 @@ int my_release(struct inode *inode, struct file *filp)
 ssize_t my_write(struct file *filp, const char __user *usr_buff, size_t count, loff_t *ppos)
 {
 	my_privatedata *dev = filp->private_data;
-	printk("Character driver write function");
+	printk("Character driver write function UID: %d", current->pid);
 
 	if (down_interruptible(&dev->sem))
 		return -ERESTARTSYS;
@@ -184,8 +205,9 @@ ssize_t my_write(struct file *filp, const char __user *usr_buff, size_t count, l
 			       	dev->KERN_BUFF.buf);
 		dev->KERN_BUFF.head = (dev->KERN_BUFF.head + 1) & (dev->KERN_SIZE - 1);
 	}
+
+	set_last_op(dev->last_op, "WRITE");
 	
-	//struct timespec t = current_kernel_time();
 	up(&dev->sem);
 	wake_up_interruptible(&dev->inq);
 
@@ -234,6 +256,9 @@ ssize_t my_read(struct file *filp, char __user *usr_buf, size_t count, loff_t *p
 	}
 
 	printk("Data '%s' from kernel buffer", usr_buf);
+
+	set_last_op(dev->last_op, "READ");
+
 	up(&dev->sem);
 	wake_up_interruptible(&dev->outq);
 
@@ -242,7 +267,7 @@ ssize_t my_read(struct file *filp, char __user *usr_buf, size_t count, loff_t *p
 
 long my_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
-	//my_privatedata *dev = filp->private_data;
+	my_privatedata *dev = filp->private_data;
 
 	switch (cmd)
 	{
@@ -263,12 +288,10 @@ long my_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		case GET_LAST_OP:
 		{
 			printk("In ioctl GET_LAST_OP with cmd - %d", cmd);
-			//char *output = (char *)arg;
 
-			struct timespec64 time;
-			//unsigned long local_time;
+			if (copy_to_user((char*)arg, dev->last_op, strlen(dev->last_op)))
+				return -EFAULT;
 
-			ktime_get_ts64(&time);
 			break;
 		}
 		default:
