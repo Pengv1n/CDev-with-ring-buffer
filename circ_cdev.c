@@ -195,14 +195,7 @@ ssize_t my_write(struct file *filp, const char __user *usr_buff, size_t count, l
 			up(&dev->sem);
 			return -EFAULT;
 		}
-		if (ch == '\0')
-			break;
 		dev->KERN_BUFF.buf[dev->KERN_BUFF.head] = ch;
-		printk("In character driver write function and value of KERN_BUFF is: %d %d %ld %s",
-			       	CIRC_SPACE(dev->KERN_BUFF.head,dev->KERN_BUFF.tail,dev->KERN_SIZE),
-			       	dev->KERN_BUFF.head,
-			       	strlen(dev->KERN_BUFF.buf),
-			       	dev->KERN_BUFF.buf);
 		dev->KERN_BUFF.head = (dev->KERN_BUFF.head + 1) & (dev->KERN_SIZE - 1);
 	}
 
@@ -211,26 +204,25 @@ ssize_t my_write(struct file *filp, const char __user *usr_buff, size_t count, l
 	up(&dev->sem);
 	wake_up_interruptible(&dev->inq);
 
-	return 0;
+	return i;
 }
 
 ssize_t my_read(struct file *filp, char __user *usr_buf, size_t count, loff_t *ppos)
 {
 	my_privatedata *dev = filp->private_data;
-	printk("Character driver read function");
+	printk("Character driver write function UID: %d", current->pid);
 
 	if (down_interruptible(&dev->sem))
         	return -ERESTARTSYS;
 
 	while (CIRC_CNT(dev->KERN_BUFF.head, dev->KERN_BUFF.tail, dev->KERN_SIZE) < 1)
 	{
-		up(&dev->sem); /* release the lock */
+		up(&dev->sem);
         	if (filp->f_flags & O_NONBLOCK)
             		return -EAGAIN;
         	printk("\"%s\" reading: going to sleep\n", current->comm);
         	if (wait_event_interruptible(dev->inq, (CIRC_CNT(dev->KERN_BUFF.head, dev->KERN_BUFF.tail, dev->KERN_SIZE) >= 1)))
-            		return -ERESTARTSYS; /* signal: tell the fs layer to handle it */
-        	/* otherwise loop, but first reacquire the lock */
+            		return -ERESTARTSYS;
         	if (down_interruptible(&dev->sem))
             		return -ERESTARTSYS;
 	}
@@ -262,7 +254,7 @@ ssize_t my_read(struct file *filp, char __user *usr_buf, size_t count, loff_t *p
 	up(&dev->sem);
 	wake_up_interruptible(&dev->outq);
 
-	return 0;
+	return strlen(usr_buf);
 }
 
 long my_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
