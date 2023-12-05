@@ -1,0 +1,10 @@
+Source: write
+Version: 1.0-0
+Section: base
+Maintainer: Georgiy Serikpaev <georgiy_gosha_09@mail.ru>
+Build-Depends: dh-systemd (>= 1.5), debhelper (>= 10)
+
+Package: write
+Architecture: all
+Description: write time
+	write time to character device /dev/circ_dev0

@@ -1,0 +1,23 @@
+Format: 1.8
+Date: Mon, 22 Mar 2010 00:37:31 +0100
+Source: write
+Binary: write
+Architecture: all
+Version: 1.0-0
+Distribution: unstable
+Urgency: low
+Maintainer: Georgiy Serikpaev <georgiy_gosha_09@mail.ru>
+Changed-By: Georgiy Serikpaev <georgiy_gosha_09@mail.ru>
+Description:
+ write      - write time
+Changes:
+ write (1.0-0) unstable; urgency=low
+Checksums-Sha1:
+ 9c2d7f35f44cb7c9d1e9f58bcb20b56a403840db 2148 write_1.0-0_all.deb
+ 450d2700900a572b45b155121799b498b8e1b8fe 5169 write_1.0-0_amd64.buildinfo
+Checksums-Sha256:
+ 7ec111d11f80a57be49d03edf84b599b8d5884541d6d5d1f40a3d81e0aa6c8c1 2148 write_1.0-0_all.deb
+ 503a3d862aec254c5fe7ff24e37dd5b370e685bc77b9c84bf1890fcaa9d04f76 5169 write_1.0-0_amd64.buildinfo
+Files:
+ a534b44530ca48281a99559c9e621db4 2148 base - write_1.0-0_all.deb
+ 2a766fba864b6ddfb39a64859ce11456 5169 base - write_1.0-0_amd64.buildinfo

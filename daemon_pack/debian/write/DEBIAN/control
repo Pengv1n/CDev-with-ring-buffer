@@ -1,0 +1,8 @@
+Package: write
+Version: 1.0-0
+Architecture: all
+Maintainer: Georgiy Serikpaev <georgiy_gosha_09@mail.ru>
+Installed-Size: 21
+Section: base
+Description: write time
+ write time to character device /dev/circ_dev0

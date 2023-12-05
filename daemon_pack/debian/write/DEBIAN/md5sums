@@ -1,0 +1,5 @@
+0006d3d215c69cbeb5ecb0bddfd7aa8d  lib/systemd/system/write.service
+61ede4f9469981fed6ae182bfef270c8  lib/systemd/system/write.timer
+24e247856cf2449fa9e004a47194902d  usr/local/bin/write_cdev.sh
+647338ecb13eef9e79f793a862570ca6  usr/share/doc/write/changelog.Debian.gz
+d41d8cd98f00b204e9800998ecf8427e  usr/share/doc/write/copyright

@@ -1,0 +1,7 @@
+
+[Unit]
+Description=Write time into driver
+
+[Service]
+ExecStart =/bin/bash '/usr/local/bin/write_cdev.sh'
+

@@ -1,0 +1,21 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@ --with systemd
+
+override_dh_usrlocal:
+
+override_dh_install:
+	dh_install  --sourcedir=debian/usr write_cdev.sh /usr/local/bin
+override_dh_installinit:
+	dh_systemd_enable write.timer
+	dh_systemd_enable write.service
+	dh_installinit --no-start --noscripts
+	dh_systemd_start --no-restart-on-upgrade
+
+override_dh_systemd_start:
+	echo "Not running dh_systemd_start"
+
+override_dh_auto_clean:
+	dh_testdir
+	dh_clean
