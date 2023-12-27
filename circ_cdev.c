@@ -1,64 +1,4 @@
-#include <linux/module.h>
-#include <linux/fs.h>
-#include <linux/device.h>
-#include <linux/init.h>
-#include <linux/circ_buf.h>
-#include <linux/cdev.h>
-#include <linux/printk.h>
-#include <linux/wait.h>
-#include <linux/time.h>
-#include <linux/timex.h>
-#include <linux/rtc.h>
-#include <linux/timekeeping.h>
-#include <linux/cred.h>
-
-#define IONBLOCK _IO('L', 0)
-#define GET_LAST_OP _IO('L', 1)
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Georgiy");
-
-#define MAX_DEVICE 1
-#define DRIVER_NAME "circ_cdev"
-
-int my_open(struct inode *inode, struct file *filp);
-ssize_t my_write(struct file *filp, const char __user *usr_buf, size_t count, loff_t *ppos);
-ssize_t my_read(struct file *filp, char __user *usr_buf, size_t count, loff_t *ppos);
-int my_release(struct inode *inode, struct file *filp);
-long my_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
-
-typedef struct privatedata
-{
-	wait_queue_head_t inq, outq;
-	int minor_num;
-	struct cdev mycdev;
-	struct circ_buf KERN_BUFF;
-	int KERN_SIZE;
-	struct semaphore sem;
-	char last_op[127];
-} my_privatedata;
-
-my_privatedata devices[MAX_DEVICE];
-
-dev_t device_num;
-int major;
-int minor = 1;
-
-static uint circ_buff_size = 16;
-
-module_param(circ_buff_size, uint, S_IRUGO);
-
-struct class *my_class;
-struct device *my_device;
-
-struct file_operations my_fops = {
-	.owner   = THIS_MODULE,
-	.open    = my_open,
-	.release = my_release,
-	.write   = my_write,
-	.read    = my_read,
-	.unlocked_ioctl = my_ioctl,
-};
+#include "circ_cdev.h"
 
 void set_last_op(char *out, const char *op)
 {
@@ -83,11 +23,11 @@ static int __init circ_cdev_init(void)
 {
 	int ret;
 
-	printk("I am in INIT FUNCTION");
+	pr_debug("circ_cdev: I am in INIT FUNCTION");
 	ret = alloc_chrdev_region(&device_num, minor, MAX_DEVICE, DRIVER_NAME);
 	if (ret < 0)
 	{
-		printk("Register Device failed");
+		pr_err("circ_cdev: Register Device failed");
 		return -1;
 	}
 	major = MAJOR(device_num);
@@ -95,7 +35,7 @@ static int __init circ_cdev_init(void)
 	my_class = class_create(DRIVER_NAME);
 	if (!my_class)
 	{
-		printk("Class creation failed");
+		pr_err("circ_cdev: Class creation failed");
 		return -1;
 	}
 
@@ -112,17 +52,17 @@ static int __init circ_cdev_init(void)
 		if (my_device == NULL)
 		{
 			class_destroy(my_class);
-			printk("Device creation failed");
+			pr_err("circ_cdev: Device creation failed");
 			return -1;
 		}
 
 		devices[i].minor_num = minor + i;
 		devices[i].KERN_BUFF.buf = kzalloc(circ_buff_size, GFP_KERNEL);
-		printk("Done alloc buffer with size: %d", circ_buff_size);
+		pr_debug("circ_cdev: Done alloc buffer with size: %d", circ_buff_size);
 		if (!devices[i].KERN_BUFF.buf)
 		{
 			class_destroy(my_class);
-			printk("Error kmalloc buffer");
+			pr_err("circ_cdev: Error kmalloc buffer");
 			return -1;
 		}
 	}
@@ -131,7 +71,7 @@ static int __init circ_cdev_init(void)
 
 static void __exit circ_cdev_exit(void)
 {
-	printk("I am in EXIT FUNCTION");
+	pr_debug("circ_cdev: I am in EXIT FUNCTION");
 	for (int i = 0; i < MAX_DEVICE; ++i)
 	{
 		kfree(devices[i].KERN_BUFF.buf);
@@ -151,21 +91,21 @@ int my_open(struct inode *inode, struct file *filp)
 	my_privatedata *dev = container_of(inode->i_cdev, my_privatedata, mycdev);
 	filp->private_data = dev;
 	dev->KERN_SIZE = circ_buff_size;
-	printk("In character driver open function device node %d", dev->minor_num);
+	pr_debug("circ_cdev: In character driver open function device node %d", dev->minor_num);
 	return 0;
 }
 
 int my_release(struct inode *inode, struct file *filp)
 {
 	my_privatedata *dev = filp->private_data;
-	printk("I am in release function and minor number is %d", dev->minor_num);
+	pr_debug("circ_cdev: I am in release function and minor number is %d", dev->minor_num);
 	return 0;
 }
 
 ssize_t my_write(struct file *filp, const char __user *usr_buff, size_t count, loff_t *ppos)
 {
 	my_privatedata *dev = filp->private_data;
-	printk("Character driver write function UID: %d", current->pid);
+	pr_debug("circ_cdev: Character driver write function UID: %d", current->pid);
 
 	if (down_interruptible(&dev->sem))
 		return -ERESTARTSYS;
@@ -210,7 +150,7 @@ ssize_t my_write(struct file *filp, const char __user *usr_buff, size_t count, l
 ssize_t my_read(struct file *filp, char __user *usr_buf, size_t count, loff_t *ppos)
 {
 	my_privatedata *dev = filp->private_data;
-	printk("Character driver write function UID: %d", current->pid);
+	pr_debug("circ_cdev: Character driver write function UID: %d", current->pid);
 
 	if (down_interruptible(&dev->sem))
         	return -ERESTARTSYS;
@@ -220,7 +160,7 @@ ssize_t my_read(struct file *filp, char __user *usr_buf, size_t count, loff_t *p
 		up(&dev->sem);
         	if (filp->f_flags & O_NONBLOCK)
             		return -EAGAIN;
-        	printk("\"%s\" reading: going to sleep\n", current->comm);
+        	pr_debug("circ_cdev: \"%s\" reading: going to sleep\n", current->comm);
         	if (wait_event_interruptible(dev->inq, (CIRC_CNT(dev->KERN_BUFF.head, dev->KERN_BUFF.tail, dev->KERN_SIZE) >= 1)))
             		return -ERESTARTSYS;
         	if (down_interruptible(&dev->sem))
@@ -247,7 +187,7 @@ ssize_t my_read(struct file *filp, char __user *usr_buf, size_t count, loff_t *p
 		return -EFAULT;
 	}
 
-	printk("Data '%s' from kernel buffer", usr_buf);
+	pr_debug("circ_cdev: Data '%s' from kernel buffer", usr_buf);
 
 	set_last_op(dev->last_op, "READ");
 
@@ -265,7 +205,7 @@ long my_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	{
 		case IONBLOCK:
 		{
-			printk("In ioctl IONBLOCK with cmd - %d", cmd);
+			pr_debug("circ_cdev: In ioctl IONBLOCK with cmd - %d", cmd);
 			
 			unsigned int flag;
 			flag = O_NONBLOCK;
@@ -279,7 +219,7 @@ long my_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		}
 		case GET_LAST_OP:
 		{
-			printk("In ioctl GET_LAST_OP with cmd - %d", cmd);
+			pr_debug("circ_cdev: In ioctl GET_LAST_OP with cmd - %d", cmd);
 
 			if (copy_to_user((char*)arg, dev->last_op, strlen(dev->last_op)))
 				return -EFAULT;
@@ -288,7 +228,7 @@ long my_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		}
 		default:
 		{
-			printk("In ioctl with not handled cmd");
+			pr_warn("circ_cdev: In ioctl with not handled cmd");
 			break;
 		}
 	}
